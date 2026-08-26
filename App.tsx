@@ -33,6 +33,7 @@ import ClassManagement from './components/ClassManagement';
 import EditSessionModal from './components/EditSessionModal';
 import NotificationSettingsModal from './components/NotificationSettingsModal';
 import CameraCaptureModal from './components/CameraCaptureModal';
+import ScheduleCheckModal from './components/ScheduleCheckModal';
 import { 
   Loader2, 
   Upload, 
@@ -46,6 +47,8 @@ import {
   CalendarDays, 
   Users, 
   CalendarRange, 
+  CalendarCheck,
+  CheckCircle2,
   BookOpen,
   Plus,
   Edit3,
@@ -111,12 +114,44 @@ const HomePage: React.FC<{
   onOpenNotificationSettings 
 }) => {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
+  const [timeScope, setTimeScope] = useState<'all' | 'today' | 'this_week'>('all');
+  const [isCheckModalOpen, setIsCheckModalOpen] = useState<boolean>(false);
+  const [checkModalTab, setCheckModalTab] = useState<'today' | 'week'>('today');
   
   const today = new Date();
   const todayIndex = today.getDay(); 
   const jsDayToViDay = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
   const todayStr = jsDayToViDay[todayIndex];
   const todayDateStr = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`;
+
+  // Current week boundaries
+  const currentWeekRange = useMemo(() => getWeekRange(today), [today]);
+
+  // Check counts for badges across ALL schedules
+  const todayAllCount = useMemo(() => {
+    return schedules.filter(item => {
+      if (item.date && item.date.trim() !== '') {
+        return item.date === todayDateStr;
+      }
+      return item.dayOfWeek === todayStr;
+    }).length;
+  }, [schedules, todayDateStr, todayStr]);
+
+  const thisWeekAllCount = useMemo(() => {
+    let count = 0;
+    schedules.forEach(item => {
+      if (item.date && item.date.trim() !== '') {
+        const dObj = parseDate(item.date);
+        if (dObj && dObj >= currentWeekRange.start && dObj <= currentWeekRange.end) {
+          count++;
+        }
+      } else {
+        // Recurring items count for their day in current week
+        count++;
+      }
+    });
+    return count;
+  }, [schedules, currentWeekRange]);
 
   // Unique classes for filter chips
   const classList = useMemo(() => {
@@ -129,13 +164,44 @@ const HomePage: React.FC<{
     return Array.from(set).sort();
   }, [schedules]);
 
-  // Filtered schedules
-  const displayedSchedules = useMemo(() => {
+  // Filtered schedules by class
+  const classFilteredSchedules = useMemo(() => {
     if (selectedClassFilter === 'ALL') return schedules;
     return schedules.filter(s => (s.className || '').trim() === selectedClassFilter);
   }, [schedules, selectedClassFilter]);
 
-  // Separate items into Recurring (no date) and Specific (has date)
+  // Filtered schedules by time scope ('all' | 'today' | 'this_week')
+  const displayedSchedules = useMemo(() => {
+    if (timeScope === 'today') {
+      return classFilteredSchedules.filter(item => {
+        if (item.date && item.date.trim() !== '') {
+          return item.date === todayDateStr;
+        }
+        return item.dayOfWeek === todayStr;
+      });
+    }
+
+    if (timeScope === 'this_week') {
+      return classFilteredSchedules.filter(item => {
+        if (item.date && item.date.trim() !== '') {
+          const dObj = parseDate(item.date);
+          return dObj && dObj >= currentWeekRange.start && dObj <= currentWeekRange.end;
+        }
+        // Recurring items belong to every week
+        return true;
+      });
+    }
+
+    return classFilteredSchedules;
+  }, [classFilteredSchedules, timeScope, todayDateStr, todayStr, currentWeekRange]);
+
+  // Today specific items for today view
+  const todaySessionsSorted = useMemo(() => {
+    if (timeScope !== 'today') return [];
+    return [...displayedSchedules].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [displayedSchedules, timeScope]);
+
+  // Separate items into Recurring (no date) and Specific (has date) for general & week view
   const recurringItems: ScheduleItem[] = [];
   const specificItems: ScheduleItem[] = [];
 
@@ -275,15 +341,27 @@ const HomePage: React.FC<{
     );
   };
 
+  const handleOpenQuickCheck = (tab: 'today' | 'week') => {
+    setCheckModalTab(tab);
+    setIsCheckModalOpen(true);
+  };
+
   return (
     <div className="pb-28 pt-4 px-4">
       {/* Header */}
-      <header className="mb-4 flex justify-between items-center sticky top-0 bg-gray-50/95 backdrop-blur-sm z-10 py-2">
+      <header className="mb-3 flex justify-between items-center sticky top-0 bg-gray-50/95 backdrop-blur-sm z-10 py-2">
         <div>
            <h1 className="text-2xl font-bold text-gray-900">Lịch Dạy</h1>
            <p className="text-gray-500 text-xs">{todayStr}, {todayDateStr}</p>
         </div>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handleOpenQuickCheck('today')}
+            className="p-2 bg-white text-indigo-600 rounded-full shadow-xs hover:bg-indigo-50 border border-indigo-100 active:scale-95 transition-all"
+            title="Kiểm tra chi tiết lịch dạy hôm nay và tuần này"
+          >
+            <CalendarCheck size={18} />
+          </button>
           <button
             onClick={onQuickAdd}
             className="p-2 bg-indigo-600 text-white rounded-full shadow-sm hover:bg-indigo-700 active:scale-95 transition-all"
@@ -304,12 +382,101 @@ const HomePage: React.FC<{
         </div>
       </header>
 
+      {/* QUICK CHECK & TIME SCOPE BUTTONS */}
+      <div className="mb-3 bg-white p-2 rounded-2xl border border-gray-200/90 shadow-2xs">
+        <div className="flex items-center justify-between text-[11px] font-bold text-gray-400 mb-1.5 px-1">
+          <span className="flex items-center">
+            <CalendarCheck size={13} className="mr-1 text-indigo-600" />
+            Kiểm tra lịch:
+          </span>
+          <button
+            onClick={() => handleOpenQuickCheck('today')}
+            className="text-indigo-600 hover:text-indigo-700 flex items-center font-semibold text-[11px]"
+          >
+            <span>Xem chi tiết</span>
+            <Sparkles size={11} className="ml-1 text-amber-500" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5">
+          {/* Button 1: Hôm nay */}
+          <button
+            onClick={() => setTimeScope('today')}
+            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              timeScope === 'today'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-gray-50/90 text-gray-700 hover:bg-indigo-50/50 border border-gray-200/60'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[11px] font-bold">Hôm nay</span>
+              <span 
+                className={`w-2 h-2 rounded-full ${
+                  todayAllCount > 0 
+                    ? timeScope === 'today' ? 'bg-emerald-300' : 'bg-emerald-500' 
+                    : timeScope === 'today' ? 'bg-indigo-300' : 'bg-gray-300'
+                }`}
+              />
+            </div>
+            <div className="mt-1">
+              <span className={`text-[12px] font-extrabold ${
+                timeScope === 'today' ? 'text-white' : todayAllCount > 0 ? 'text-emerald-700' : 'text-gray-400'
+              }`}>
+                {todayAllCount > 0 ? `${todayAllCount} buổi` : 'Nghỉ'}
+              </span>
+            </div>
+          </button>
+
+          {/* Button 2: Tuần hiện tại */}
+          <button
+            onClick={() => setTimeScope('this_week')}
+            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              timeScope === 'this_week'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-gray-50/90 text-gray-700 hover:bg-indigo-50/50 border border-gray-200/60'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[11px] font-bold">Tuần này</span>
+              <CalendarDays size={12} className={timeScope === 'this_week' ? 'text-indigo-200' : 'text-gray-400'} />
+            </div>
+            <div className="mt-1">
+              <span className={`text-[12px] font-extrabold ${
+                timeScope === 'this_week' ? 'text-white' : thisWeekAllCount > 0 ? 'text-indigo-700' : 'text-gray-400'
+              }`}>
+                {thisWeekAllCount > 0 ? `${thisWeekAllCount} buổi` : '0 buổi'}
+              </span>
+            </div>
+          </button>
+
+          {/* Button 3: Toàn bộ lịch */}
+          <button
+            onClick={() => setTimeScope('all')}
+            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              timeScope === 'all'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-gray-50/90 text-gray-700 hover:bg-indigo-50/50 border border-gray-200/60'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[11px] font-bold">Tất cả</span>
+              <CalendarRange size={12} className={timeScope === 'all' ? 'text-indigo-200' : 'text-gray-400'} />
+            </div>
+            <div className="mt-1">
+              <span className={`text-[12px] font-extrabold ${timeScope === 'all' ? 'text-white' : 'text-gray-700'}`}>
+                {schedules.length} buổi
+              </span>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Class Filter Chips with Color Badges */}
       {classList.length > 0 && (
-        <div className="mb-5 overflow-x-auto pb-1 no-scrollbar flex items-center space-x-1.5">
+        <div className="mb-4 overflow-x-auto pb-1 no-scrollbar flex items-center space-x-1.5">
           <div className="flex items-center text-xs text-gray-400 mr-1 shrink-0 font-medium">
             <Filter size={13} className="mr-1" />
-            Lọc:
+            Lớp:
           </div>
           <button
             onClick={() => setSelectedClassFilter('ALL')}
@@ -345,63 +512,174 @@ const HomePage: React.FC<{
         </div>
       )}
 
+      {/* TIME SCOPE STATUS BANNER */}
+      {timeScope === 'today' && (
+        <div className="mb-4 p-3 bg-gradient-to-r from-indigo-50 to-indigo-100/60 border border-indigo-200/80 rounded-2xl flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Clock size={16} className="text-indigo-600 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-indigo-950">
+                Lịch Dạy Hôm Nay ({todayStr} • {todayDateStr})
+              </p>
+              <p className="text-[11px] text-indigo-700">
+                {displayedSchedules.length > 0 
+                  ? `Có ${displayedSchedules.length} buổi dạy${selectedClassFilter !== 'ALL' ? ` (Lớp ${selectedClassFilter})` : ''}` 
+                  : 'Hôm nay không có lịch dạy'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleOpenQuickCheck('today')}
+            className="px-2.5 py-1 bg-white text-indigo-700 text-[11px] font-bold rounded-lg border border-indigo-200 shadow-2xs hover:bg-indigo-50 transition-colors"
+          >
+            Chi tiết
+          </button>
+        </div>
+      )}
+
+      {timeScope === 'this_week' && (
+        <div className="mb-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-2xl flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CalendarDays size={16} className="text-indigo-600 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-indigo-950">
+                Lịch Dạy Tuần Này ({currentWeekRange.label})
+              </p>
+              <p className="text-[11px] text-indigo-700">
+                {displayedSchedules.length > 0 
+                  ? `Tổng ${displayedSchedules.length} buổi dạy trong tuần` 
+                  : 'Không có lịch dạy trong tuần này'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleOpenQuickCheck('week')}
+            className="px-2.5 py-1 bg-white text-indigo-700 text-[11px] font-bold rounded-lg border border-indigo-200 shadow-2xs hover:bg-indigo-50 transition-colors"
+          >
+            Chi tiết
+          </button>
+        </div>
+      )}
+
+      {/* SCHEDULES CONTENT */}
       {displayedSchedules.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-center bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mt-4">
+        <div className="flex flex-col items-center justify-center h-64 text-center bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mt-2">
           <div className="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-full flex items-center justify-center mb-3">
             <Calendar size={30} />
           </div>
           <p className="text-gray-800 font-bold">
-            {selectedClassFilter !== 'ALL' ? `Không có lịch dạy cho lớp ${selectedClassFilter}` : 'Chưa có lịch dạy nào.'}
+            {timeScope === 'today' 
+              ? 'Hôm nay không có lịch dạy nào.' 
+              : timeScope === 'this_week' 
+              ? 'Tuần này không có lịch dạy nào.' 
+              : selectedClassFilter !== 'ALL' 
+              ? `Không có lịch dạy cho lớp ${selectedClassFilter}` 
+              : 'Chưa có lịch dạy nào.'}
           </p>
           <p className="text-gray-400 text-xs mt-1 mb-4">
-            Nhấn "Thêm buổi" hoặc chuyển sang tab "Thêm mới" để quét ảnh thời khóa biểu.
+            {timeScope !== 'all' 
+              ? 'Bạn có thể chuyển sang "Tất cả" hoặc kiểm tra các ngày khác.' 
+              : 'Nhấn "Thêm buổi" hoặc quét ảnh thời khóa biểu.'}
           </p>
-          <button
-            onClick={onQuickAdd}
-            className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow hover:bg-indigo-700 transition-all flex items-center"
-          >
-            <Plus size={14} className="mr-1" />
-            Thêm buổi dạy ngay
-          </button>
+          <div className="flex items-center space-x-2">
+            {timeScope !== 'all' && (
+              <button
+                onClick={() => setTimeScope('all')}
+                className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-colors"
+              >
+                Xem tất cả lịch
+              </button>
+            )}
+            <button
+              onClick={onQuickAdd}
+              className="px-4 py-2 bg-indigo-600 text-white font-bold rounded-xl text-xs shadow hover:bg-indigo-700 transition-all flex items-center"
+            >
+              <Plus size={14} className="mr-1" />
+              Thêm buổi dạy
+            </button>
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
-          {/* SECTION 1: RECURRING SCHEDULE (Lịch cố định) */}
-          {recurringItems.length > 0 && (
+          {/* SPECIAL VIEW FOR TODAY ONLY */}
+          {timeScope === 'today' ? (
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-4 text-indigo-900 border-b border-gray-100 pb-2">
                 <div className="flex items-center">
-                  <CalendarRange size={18} className="mr-2 text-indigo-600" />
-                  <h2 className="font-bold text-base">Lịch cố định hàng tuần</h2>
+                  <Clock size={18} className="mr-2 text-emerald-600" />
+                  <h2 className="font-bold text-base">Danh sách buổi dạy hôm nay</h2>
                 </div>
-                <span className="text-xs text-gray-400 font-medium">
-                  {recurringItems.length} buổi
+                <span className="text-xs text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                  {todaySessionsSorted.length} buổi
                 </span>
               </div>
-              {renderDayGroups(recurringItems)}
+              <div className="space-y-3">
+                {todaySessionsSorted.map(item => (
+                  <ClassCard 
+                    key={item.id} 
+                    item={item} 
+                    onClick={() => onItemClick(item)} 
+                    isToday={true} 
+                    customColorMap={customColorMap}
+                  />
+                ))}
+              </div>
             </div>
-          )}
-
-          {/* SECTION 2: WEEKLY SCHEDULES */}
-          {sortedWeekKeys.map(key => {
-            const group = weekGroups[key];
-            return (
-              <div key={key} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-                 <div className="flex items-center justify-between mb-4 text-gray-800 border-b border-gray-100 pb-2">
+          ) : (
+            <>
+              {/* SECTION 1: RECURRING SCHEDULE (Lịch cố định) */}
+              {recurringItems.length > 0 && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4 text-indigo-900 border-b border-gray-100 pb-2">
                     <div className="flex items-center">
-                      <CalendarDays size={18} className="mr-2 text-orange-500" />
-                      <h2 className="font-bold text-base">{group.label}</h2>
+                      <CalendarRange size={18} className="mr-2 text-indigo-600" />
+                      <h2 className="font-bold text-base">
+                        {timeScope === 'this_week' ? 'Lịch dạy trong tuần' : 'Lịch cố định hàng tuần'}
+                      </h2>
                     </div>
                     <span className="text-xs text-gray-400 font-medium">
-                      {group.items.length} buổi
+                      {recurringItems.length} buổi
                     </span>
-                 </div>
-                 {renderDatedDayGroups(group.items)}
-              </div>
-            );
-          })}
+                  </div>
+                  {renderDayGroups(recurringItems)}
+                </div>
+              )}
+
+              {/* SECTION 2: WEEKLY SCHEDULES */}
+              {sortedWeekKeys.map(key => {
+                const group = weekGroups[key];
+                return (
+                  <div key={key} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                     <div className="flex items-center justify-between mb-4 text-gray-800 border-b border-gray-100 pb-2">
+                        <div className="flex items-center">
+                          <CalendarDays size={18} className="mr-2 text-orange-500" />
+                          <h2 className="font-bold text-base">{group.label}</h2>
+                        </div>
+                        <span className="text-xs text-gray-400 font-medium">
+                          {group.items.length} buổi
+                        </span>
+                     </div>
+                     {renderDatedDayGroups(group.items)}
+                  </div>
+                );
+              })}
+            </>
+          )}
         </div>
       )}
+
+      {/* SCHEDULE CHECK MODAL */}
+      <ScheduleCheckModal
+        isOpen={isCheckModalOpen}
+        onClose={() => setIsCheckModalOpen(false)}
+        schedules={schedules}
+        customColorMap={customColorMap}
+        initialTab={checkModalTab}
+        onSelectScheduleItem={(item) => onItemClick(item)}
+        onApplyFilter={(scope) => {
+          setTimeScope(scope);
+        }}
+      />
     </div>
   );
 };
