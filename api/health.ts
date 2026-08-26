@@ -1,9 +1,14 @@
-import express from "express";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const app = express();
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "GET") {
+    return res.status(405).json({
+      error: "Method Not Allowed",
+    });
+  }
 
-app.get("/", (_req, res) => {
-  res.status(200).json({ ok: true, service: "smartschedule-api" });
-});
-
-export default app;
+  return res.status(200).json({
+    ok: true,
+    service: "smartschedule-api",
+  });
+}
