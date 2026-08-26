@@ -46,3 +46,14 @@ npm run preview
 - AI extraction cần Internet và `GEMINI_API_KEY`.
 - PWA/offline cache không làm Gemini hoạt động offline.
 - Thông báo nền đáng tin cậy cần Web Push nếu muốn gửi từ server khi trình duyệt không mở.
+
+
+## Vercel: lỗi 404 tại `/api/extract-schedule`
+
+Nếu frontend mở bình thường nhưng Console báo `POST /api/extract-schedule 404`, hãy kiểm tra Deployment > Functions. Bản này không khai báo `functions` pattern thủ công trong `vercel.json`; Vercel tự động nhận các file Node.js/TypeScript trong thư mục `/api` thành Functions. Điều này tránh lỗi khớp pattern trên một số phiên bản build hiện tại. Sau khi cập nhật code, hãy **Redeploy** để Vercel tạo lại Functions.
+
+Kiểm tra nhanh:
+
+- Mở `https://TEN-DOMAIN.vercel.app/api/health` — phải trả JSON `{ "ok": true, "service": "smartschedule-api" }`.
+- Nếu `/api/health` vẫn 404, hãy kiểm tra Vercel Project Settings > General > Root Directory phải là thư mục chứa `package.json`, `index.html` và `api/`.
+- `GEMINI_API_KEY` chỉ cần thiết sau khi `/api/health` đã hoạt động.
