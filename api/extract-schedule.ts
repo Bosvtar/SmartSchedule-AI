@@ -1,11 +1,15 @@
-import express from "express";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { GoogleGenAI, Type } from "@google/genai";
 
-const app = express();
-app.use(express.json({ limit: "20mb" }));
-
-// Server-side Gemini schedule extraction endpoint
-app.post("/", async (req, res) => {
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse
+) {
+  if (req.method !== "POST") {
+    return res.status(405).json({
+      error: "Method Not Allowed",
+    });
+  }
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
@@ -265,13 +269,20 @@ app.post("/", async (req, res) => {
       throw lastError || new Error("Không thể kết nối đến Gemini AI lúc này.");
     }
 
-    return res.json({ success: true, data: parsed });
+       return res.status(200).json({
+      success: true,
+      data: parsed,
+    });
   } catch (error: any) {
     console.error("Server Gemini extraction error:", error);
-    const message = error?.message || "Lỗi khi xử lý hình ảnh với Gemini AI";
-    return res.status(500).json({ error: message });
+
+    const message =
+      error?.message || "Lỗi khi xử lý hình ảnh với Gemini AI";
+
+    return res.status(500).json({
+      error: message,
+    });
   }
-});
+}
 
 
-export default app;
