@@ -114,9 +114,9 @@ const HomePage: React.FC<{
   onOpenNotificationSettings 
 }) => {
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('ALL');
-  const [timeScope, setTimeScope] = useState<'all' | 'today' | 'this_week'>('all');
+  const [timeScope, setTimeScope] = useState<'all' | 'today' | 'this_week' | 'next_week'>('all');
   const [isCheckModalOpen, setIsCheckModalOpen] = useState<boolean>(false);
-  const [checkModalTab, setCheckModalTab] = useState<'today' | 'week'>('today');
+  const [checkModalTab, setCheckModalTab] = useState<'today' | 'week' | 'next_week'>('today');
   
   const today = new Date();
   const todayIndex = today.getDay(); 
@@ -126,6 +126,13 @@ const HomePage: React.FC<{
 
   // Current week boundaries
   const currentWeekRange = useMemo(() => getWeekRange(today), [today]);
+
+  // Next week boundaries
+  const nextWeekRange = useMemo(() => {
+    const nextWeekDate = new Date(today);
+    nextWeekDate.setDate(today.getDate() + 7);
+    return getWeekRange(nextWeekDate);
+  }, [today]);
 
   // Check counts for badges across ALL schedules
   const todayAllCount = useMemo(() => {
@@ -153,6 +160,22 @@ const HomePage: React.FC<{
     return count;
   }, [schedules, currentWeekRange]);
 
+  const nextWeekAllCount = useMemo(() => {
+    let count = 0;
+    schedules.forEach(item => {
+      if (item.date && item.date.trim() !== '') {
+        const dObj = parseDate(item.date);
+        if (dObj && dObj >= nextWeekRange.start && dObj <= nextWeekRange.end) {
+          count++;
+        }
+      } else {
+        // Recurring items repeat every week
+        count++;
+      }
+    });
+    return count;
+  }, [schedules, nextWeekRange]);
+
   // Unique classes for filter chips
   const classList = useMemo(() => {
     const set = new Set<string>();
@@ -170,7 +193,7 @@ const HomePage: React.FC<{
     return schedules.filter(s => (s.className || '').trim() === selectedClassFilter);
   }, [schedules, selectedClassFilter]);
 
-  // Filtered schedules by time scope ('all' | 'today' | 'this_week')
+  // Filtered schedules by time scope ('all' | 'today' | 'this_week' | 'next_week')
   const displayedSchedules = useMemo(() => {
     if (timeScope === 'today') {
       return classFilteredSchedules.filter(item => {
@@ -192,8 +215,19 @@ const HomePage: React.FC<{
       });
     }
 
+    if (timeScope === 'next_week') {
+      return classFilteredSchedules.filter(item => {
+        if (item.date && item.date.trim() !== '') {
+          const dObj = parseDate(item.date);
+          return dObj && dObj >= nextWeekRange.start && dObj <= nextWeekRange.end;
+        }
+        // Recurring items belong to every week
+        return true;
+      });
+    }
+
     return classFilteredSchedules;
-  }, [classFilteredSchedules, timeScope, todayDateStr, todayStr, currentWeekRange]);
+  }, [classFilteredSchedules, timeScope, todayDateStr, todayStr, currentWeekRange, nextWeekRange]);
 
   // Today specific items for today view
   const todaySessionsSorted = useMemo(() => {
@@ -341,7 +375,7 @@ const HomePage: React.FC<{
     );
   };
 
-  const handleOpenQuickCheck = (tab: 'today' | 'week') => {
+  const handleOpenQuickCheck = (tab: 'today' | 'week' | 'next_week') => {
     setCheckModalTab(tab);
     setIsCheckModalOpen(true);
   };
@@ -358,7 +392,7 @@ const HomePage: React.FC<{
           <button
             onClick={() => handleOpenQuickCheck('today')}
             className="p-2 bg-white text-indigo-600 rounded-full shadow-xs hover:bg-indigo-50 border border-indigo-100 active:scale-95 transition-all"
-            title="Kiểm tra chi tiết lịch dạy hôm nay và tuần này"
+            title="Kiểm tra chi tiết lịch dạy hôm nay, tuần này và tuần sau"
           >
             <CalendarCheck size={18} />
           </button>
@@ -398,7 +432,7 @@ const HomePage: React.FC<{
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {/* Button 1: Hôm nay */}
           <button
             onClick={() => setTimeScope('today')}
@@ -449,7 +483,29 @@ const HomePage: React.FC<{
             </div>
           </button>
 
-          {/* Button 3: Toàn bộ lịch */}
+          {/* Button 3: Tuần sau */}
+          <button
+            onClick={() => setTimeScope('next_week')}
+            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+              timeScope === 'next_week'
+                ? 'bg-purple-600 text-white shadow-xs'
+                : 'bg-gray-50/90 text-gray-700 hover:bg-purple-50/50 border border-gray-200/60'
+            }`}
+          >
+            <div className="flex items-center justify-between w-full">
+              <span className="text-[11px] font-bold">Tuần sau</span>
+              <CalendarRange size={12} className={timeScope === 'next_week' ? 'text-purple-200' : 'text-gray-400'} />
+            </div>
+            <div className="mt-1">
+              <span className={`text-[12px] font-extrabold ${
+                timeScope === 'next_week' ? 'text-white' : nextWeekAllCount > 0 ? 'text-purple-700' : 'text-gray-400'
+              }`}>
+                {nextWeekAllCount > 0 ? `${nextWeekAllCount} buổi` : '0 buổi'}
+              </span>
+            </div>
+          </button>
+
+          {/* Button 4: Toàn bộ lịch */}
           <button
             onClick={() => setTimeScope('all')}
             className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
@@ -561,6 +617,30 @@ const HomePage: React.FC<{
         </div>
       )}
 
+      {timeScope === 'next_week' && (
+        <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-100 rounded-2xl flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CalendarRange size={16} className="text-purple-600 shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-purple-950">
+                Lịch Dạy Tuần Sau ({nextWeekRange.label})
+              </p>
+              <p className="text-[11px] text-purple-700">
+                {displayedSchedules.length > 0 
+                  ? `Tổng ${displayedSchedules.length} buổi dạy trong tuần sau` 
+                  : 'Không có lịch dạy trong tuần sau'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleOpenQuickCheck('next_week')}
+            className="px-2.5 py-1 bg-white text-purple-700 text-[11px] font-bold rounded-lg border border-purple-200 shadow-2xs hover:bg-purple-50 transition-colors"
+          >
+            Chi tiết
+          </button>
+        </div>
+      )}
+
       {/* SCHEDULES CONTENT */}
       {displayedSchedules.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-center bg-white rounded-2xl p-6 border border-gray-100 shadow-sm mt-2">
@@ -572,13 +652,15 @@ const HomePage: React.FC<{
               ? 'Hôm nay không có lịch dạy nào.' 
               : timeScope === 'this_week' 
               ? 'Tuần này không có lịch dạy nào.' 
+              : timeScope === 'next_week'
+              ? 'Tuần sau không có lịch dạy nào.'
               : selectedClassFilter !== 'ALL' 
               ? `Không có lịch dạy cho lớp ${selectedClassFilter}` 
               : 'Chưa có lịch dạy nào.'}
           </p>
           <p className="text-gray-400 text-xs mt-1 mb-4">
             {timeScope !== 'all' 
-              ? 'Bạn có thể chuyển sang "Tất cả" hoặc kiểm tra các ngày khác.' 
+              ? 'Bạn có thể chuyển sang "Tất cả" hoặc kiểm tra các tuần khác.' 
               : 'Nhấn "Thêm buổi" hoặc quét ảnh thời khóa biểu.'}
           </p>
           <div className="flex items-center space-x-2">
@@ -634,7 +716,11 @@ const HomePage: React.FC<{
                     <div className="flex items-center">
                       <CalendarRange size={18} className="mr-2 text-indigo-600" />
                       <h2 className="font-bold text-base">
-                        {timeScope === 'this_week' ? 'Lịch dạy trong tuần' : 'Lịch cố định hàng tuần'}
+                        {timeScope === 'this_week' 
+                          ? 'Lịch dạy trong tuần này' 
+                          : timeScope === 'next_week' 
+                          ? 'Lịch dạy trong tuần sau' 
+                          : 'Lịch cố định hàng tuần'}
                       </h2>
                     </div>
                     <span className="text-xs text-gray-400 font-medium">
