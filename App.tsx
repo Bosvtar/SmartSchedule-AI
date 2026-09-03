@@ -432,20 +432,20 @@ const HomePage: React.FC<{
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-4 gap-1 sm:gap-1.5">
           {/* Button 1: Hôm nay */}
           <button
             onClick={() => setTimeScope('today')}
-            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+            className={`p-1.5 sm:p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               timeScope === 'today'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-gray-50/90 text-gray-700 hover:bg-indigo-50/50 border border-gray-200/60'
             }`}
           >
             <div className="flex items-center justify-between w-full">
-              <span className="text-[11px] font-bold">Hôm nay</span>
+              <span className="text-[10px] sm:text-[11px] font-bold truncate">Hôm nay</span>
               <span 
-                className={`w-2 h-2 rounded-full ${
+                className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full shrink-0 ${
                   todayAllCount > 0 
                     ? timeScope === 'today' ? 'bg-emerald-300' : 'bg-emerald-500' 
                     : timeScope === 'today' ? 'bg-indigo-300' : 'bg-gray-300'
@@ -453,7 +453,7 @@ const HomePage: React.FC<{
               />
             </div>
             <div className="mt-1">
-              <span className={`text-[12px] font-extrabold ${
+              <span className={`text-[11px] sm:text-[12px] font-extrabold truncate block ${
                 timeScope === 'today' ? 'text-white' : todayAllCount > 0 ? 'text-emerald-700' : 'text-gray-400'
               }`}>
                 {todayAllCount > 0 ? `${todayAllCount} buổi` : 'Nghỉ'}
@@ -464,18 +464,18 @@ const HomePage: React.FC<{
           {/* Button 2: Tuần hiện tại */}
           <button
             onClick={() => setTimeScope('this_week')}
-            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+            className={`p-1.5 sm:p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               timeScope === 'this_week'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-gray-50/90 text-gray-700 hover:bg-indigo-50/50 border border-gray-200/60'
             }`}
           >
             <div className="flex items-center justify-between w-full">
-              <span className="text-[11px] font-bold">Tuần này</span>
-              <CalendarDays size={12} className={timeScope === 'this_week' ? 'text-indigo-200' : 'text-gray-400'} />
+              <span className="text-[10px] sm:text-[11px] font-bold truncate">Tuần này</span>
+              <CalendarDays size={11} className={`shrink-0 ${timeScope === 'this_week' ? 'text-indigo-200' : 'text-gray-400'}`} />
             </div>
             <div className="mt-1">
-              <span className={`text-[12px] font-extrabold ${
+              <span className={`text-[11px] sm:text-[12px] font-extrabold truncate block ${
                 timeScope === 'this_week' ? 'text-white' : thisWeekAllCount > 0 ? 'text-indigo-700' : 'text-gray-400'
               }`}>
                 {thisWeekAllCount > 0 ? `${thisWeekAllCount} buổi` : '0 buổi'}
@@ -486,18 +486,18 @@ const HomePage: React.FC<{
           {/* Button 3: Tuần sau */}
           <button
             onClick={() => setTimeScope('next_week')}
-            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+            className={`p-1.5 sm:p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               timeScope === 'next_week'
                 ? 'bg-purple-600 text-white shadow-xs'
                 : 'bg-gray-50/90 text-gray-700 hover:bg-purple-50/50 border border-gray-200/60'
             }`}
           >
             <div className="flex items-center justify-between w-full">
-              <span className="text-[11px] font-bold">Tuần sau</span>
-              <CalendarRange size={12} className={timeScope === 'next_week' ? 'text-purple-200' : 'text-gray-400'} />
+              <span className="text-[10px] sm:text-[11px] font-bold truncate">Tuần sau</span>
+              <CalendarRange size={11} className={`shrink-0 ${timeScope === 'next_week' ? 'text-purple-200' : 'text-gray-400'}`} />
             </div>
             <div className="mt-1">
-              <span className={`text-[12px] font-extrabold ${
+              <span className={`text-[11px] sm:text-[12px] font-extrabold truncate block ${
                 timeScope === 'next_week' ? 'text-white' : nextWeekAllCount > 0 ? 'text-purple-700' : 'text-gray-400'
               }`}>
                 {nextWeekAllCount > 0 ? `${nextWeekAllCount} buổi` : '0 buổi'}
@@ -508,18 +508,18 @@ const HomePage: React.FC<{
           {/* Button 4: Toàn bộ lịch */}
           <button
             onClick={() => setTimeScope('all')}
-            className={`p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
+            className={`p-1.5 sm:p-2 rounded-xl text-left transition-all relative overflow-hidden flex flex-col justify-between ${
               timeScope === 'all'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'bg-gray-50/90 text-gray-700 hover:bg-indigo-50/50 border border-gray-200/60'
             }`}
           >
             <div className="flex items-center justify-between w-full">
-              <span className="text-[11px] font-bold">Tất cả</span>
-              <CalendarRange size={12} className={timeScope === 'all' ? 'text-indigo-200' : 'text-gray-400'} />
+              <span className="text-[10px] sm:text-[11px] font-bold truncate">Tất cả</span>
+              <CalendarRange size={11} className={`shrink-0 ${timeScope === 'all' ? 'text-indigo-200' : 'text-gray-400'}`} />
             </div>
             <div className="mt-1">
-              <span className={`text-[12px] font-extrabold ${timeScope === 'all' ? 'text-white' : 'text-gray-700'}`}>
+              <span className={`text-[11px] sm:text-[12px] font-extrabold truncate block ${timeScope === 'all' ? 'text-white' : 'text-gray-700'}`}>
                 {schedules.length} buổi
               </span>
             </div>
