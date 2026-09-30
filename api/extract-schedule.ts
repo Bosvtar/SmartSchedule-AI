@@ -33,73 +33,53 @@ export default async function handler(
     });
 
     const prompt = `
-      Hãy phân tích hình ảnh này để trích xuất danh sách thời khóa biểu / lịch học / lịch dạy / lịch thi.
+      Bạn là chuyên gia thị giác máy tính và phân tích tài liệu thời khóa biểu chính xác 100%.
+      Nhiệm vụ: Trích xuất danh sách các buổi học / tiết học từ hình ảnh bảng biểu một cách tuyệt đối trung thực, không thêm bớt.
 
-      QUY TẮC CỐT LÕI - PHÂN TÍCH THEO CỘT CỦA BẢNG BIỂU (BẮT BUỘC TUÂN THỦ NGUYÊN TẮC VÀ ĐỐI CHIẾU CHÍNH XÁC THEO TỪNG CỘT):
-      Bảng biểu / tiến trình giảng dạy / thời khóa biểu trong ảnh có cấu trúc các cột như sau, hãy đối chiếu chính xác theo từng cột để phân tích và trích xuất đúng:
+      CẢNH BÁO QUAN TRỌNG - TUYỆT ĐỐI KHÔNG TỰ SUY DIỄN / KHÔNG ĐƯỢC BỎ SÓT DÒNG:
+      1. CHỈ TRÍCH XUẤT NHỮNG DÒNG THỰC TẾ CÓ TRONG ẢNH:
+         - Mỗi hàng có nội dung trong bảng của ảnh tương ứng với đúng 1 đối tượng trong mảng JSON kết quả.
+         - TUYỆT ĐỐI KHÔNG tự động chèn thêm ngày hoặc tuần không có trong ảnh.
+         - TUYỆT ĐỐI KHÔNG tự suy diễn chuỗi tuần (ví dụ: nếu ảnh chỉ có 5 dòng tương ứng với 5 ngày, chỉ trích xuất đúng 5 dòng đó, cấm không được tự điền các tuần ở giữa hoặc sau đó).
+         - Nếu Cột 7 (Ngày) trong dòng đó bị trống, hãy để date: "". TUYỆT ĐỐI KHÔNG tự bịa ngày.
       
-      1. CỘT THỨ NHẤT (Cột 1): TÊN LỚP (className)
-         - Lấy chính xác giá trị ở cột 1 làm tên lớp / mã lớp (ví dụ: "10A1", "12D3", "KMP18", "KMP18, KNP27, KPT31", v.v.).
-         - Nếu các dòng tiếp theo ở cột 1 bị gộp ô (merged cells) hoặc để trống, hãy kế thừa tên lớp từ dòng liền trước hoặc từ thông tin "LỚP:" ở phần tiêu đề đầu trang.
+      2. QUÉT TRỌN VẸN TỪNG HÀNG - KHÔNG BỎ SÓT BẤT KỲ DÒNG NÀO:
+         - Đọc từ hàng đầu tiên đến hàng cuối cùng của bảng.
+         - Đảm bảo tất cả các hàng dữ liệu bài học đều được đưa vào kết quả.
 
-      2. CỘT THỨ HAI (Cột 2): TÊN MÔN HỌC (subject)
-         - Lấy tên môn học ở cột 2 này (ví dụ: "Lý thuyết điều khiển tự động", "Toán", "Vật lý", "Tiếng Anh", v.v.).
-         - Nếu các dòng tiếp theo ở cột 2 bị gộp ô hoặc để trống, lấy tên môn học từ dòng trước hoặc ở tiêu đề "MÔN:", "MÔN HỌC:", "HỌC PHẦN:".
+      3. ĐỐI CHIẾU CHÍNH XÁC THEO CẤU TRÚC 7 CỘT:
+         - CỘT 1 (Tên lớp): Lấy chính xác tên lớp / mã lớp ở Cột 1 (ví dụ: "10A1", "12D3", "KMP18", "KMP18, KNP27, KPT31", v.v.). Nếu dòng dưới bị gộp ô hoặc để trống cột 1, kế thừa tên lớp từ dòng liền trước hoặc tiêu đề "LỚP:".
+         - CỘT 2 (Tên môn học): Lấy tên môn học ở Cột 2 (ví dụ: "Lý thuyết điều khiển tự động", "Toán", "Vật lý", "Tiếng Anh", v.v.). Nếu dòng dưới để trống, kế thừa từ dòng trước hoặc tiêu đề "MÔN:".
+         - CỘT 4 (Tên bài học): Lấy chính xác tên bài học / nội dung bài ở Cột 4 của chính dòng đó (ví dụ: "Bài 1: Khái niệm mở đầu...", "Hàm truyền đạt", v.v.). TUYỆT ĐỐI KHÔNG sao chép tên bài học từ dòng khác; mỗi dòng có tên bài học riêng ở Cột 4.
+         - CỘT 5 (Tiết học): Lấy giá trị tiết học ở Cột 5 (ví dụ: "1-1", "1-2", "3-4", "4-4", "5-5", "6-6", "6-7", "6-8", "7-8", "8-8", "4", "5", v.v.). Tự động quy đổi ra startTime và endTime theo BẢNG QUY ĐỔI TIẾT HỌC.
+         - CỘT 6 (Thứ): Lấy thứ ở Cột 6: "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật".
+         - CỘT 7 (Ngày): Lấy ngày ghi ở Cột 7 của dòng đó.
+           + Nếu ghi dạng "DD/MM" (ví dụ: "04/08", "11/08", "15/09") -> chuyển thành "DD/MM/2026".
+           + Nếu ghi đầy đủ "DD/MM/YYYY" -> giữ nguyên.
+           + Nếu cột 7 trong ảnh để trống -> để date: "".
+           + TUYỆT ĐỐI CHỈ LẤY NGÀY CÓ MẶT TRÊN DÒNG ĐÓ. KHÔNG TỰ SINH NGÀY KHÔNG CÓ TRÊN DÒNG!
+         - CỘT 9 (Phòng học): Lấy phòng học ở Cột 9 (ví dụ: "210/H10", "203/H10", "302/D3", "P.201", "GD3", "Online", v.v.). Tuyệt đối không nhầm phòng học thành tên lớp. Nếu không có phòng ghi "Chưa cập nhật".
 
-      3. CỘT THỨ TƯ (Cột 4): TÊN BÀI HỌC (lessonName)
-         - Lấy chính xác tên bài học / nội dung bài giảng ở cột 4 này (ví dụ: "Khái niệm mở đầu về ĐKTĐ", "Mô tả toán học hệ thống liên tục", "Hàm truyền đạt", v.v.).
-         - Nếu có số bài ở cột 4 hoặc cột trước (ví dụ "Bài 1", "Bài 2" hoặc "1", "2"), định dạng chuẩn: "Bài <số>: <Tên bài>" (hoặc giữ nguyên tên bài nếu không có số).
-         - QUY TẮC BẮT BUỘC: Mỗi hàng có tên bài học riêng ở Cột 4. TUYỆT ĐỐI KHÔNG sao chép hoặc lặp lại cùng một tên bài học cho tất cả các hàng!
+      (Bỏ qua Cột 3 và Cột 8 không gán vào các trường trên).
 
-      4. CỘT THỨ NĂM (Cột 5): TIẾT HỌC (period)
-         - Lấy chính xác giá trị tiết học ở cột 5 (ví dụ: "1-1", "1-2", "1-3", "3-4", "4-4", "5-5", "6-6", "6-7", "6-8", "7-8", "8-8", "4", "5", v.v.).
-         - Dựa vào giá trị tiết học ở Cột 5, tự động tính ra startTime và endTime theo BẢNG QUY ĐỔI TIẾT HỌC CHÍNH XÁC dưới đây.
-
-      5. CỘT THỨ SÁU (Cột 6): THỨ TRONG TUẦN (dayOfWeek)
-         - Lấy thứ trong tuần ở cột 6: "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật".
-         - Bắt buộc phải đồng bộ và khớp chính xác với ngày học ở Cột 7.
-
-      6. CỘT THỨ BẢY (Cột 7): NGÀY HỌC (date)
-         - Lấy ngày học ở cột 7, định dạng đầu ra: "DD/MM/YYYY" (ví dụ: "04/08/2026", "11/08/2026", "12/08/2026", "18/08/2026").
-         - NĂM HỌC HIỆN TẠI LÀ 2026 (hoặc năm học 2026-2027). Nếu cột 7 chỉ ghi ngày/tháng (ví dụ "04/08", "11/08"), PHẢI tự động gán năm 2026 thành "04/08/2026", "11/08/2026". TUYỆT ĐỐI KHÔNG gán năm cũ như 2024 hay 2025.
-         - Nếu là lịch tuần cố định không có ngày tháng cụ thể, để date rỗng "".
-
-      7. CỘT THỨ CHÍN (Cột 9): VỊ TRÍ PHÒNG HỌC / ĐỊA ĐIỂM (location)
-         - Lấy vị trí phòng học ở cột 9 (ví dụ: "210/H10", "203/H10", "302/D3", "105/A1", "P.201", "GD3", "Online", v.v.).
-         - TUYỆT ĐỐI KHÔNG nhầm phòng học ở cột 9 thành tên lớp. Nếu không có phòng, để "Chưa cập nhật".
-
-      - Chú ý: Cột thứ 3 (thường là STT hoặc mã) và Cột thứ 8 (thường là giảng viên hoặc ghi chú) bỏ qua, không gán nhầm vào các trường trên.
-
-      BẢNG QUY ĐỔI TIẾT HỌC CHÍNH XÁC (DÙNG CHO CỘT 5 ĐỂ TÍNH startTime VÀ endTime):
+      BẢNG QUY ĐỔI TIẾT HỌC CHÍNH XÁC:
       + Tiết 1: 07:00 đến 07:45 (07:00 - 07:45)
       + Tiết 2: 07:50 đến 08:35 (07:50 - 08:35)
-      + Tiết 3: 08:45 đến 09:30 (08:45 - 09:30) [Bắt đầu 08:45, kết thúc 09:30]
-      + Tiết 4: 09:35 đến 10:20 (09:35 - 10:20) [Bắt đầu 09:35, kết thúc 10:20]
-      + Tiết 5: 10:30 đến 11:15 (10:30 - 11:15) [Bắt đầu 10:30, kết thúc 11:15]
+      + Tiết 3: 08:45 đến 09:30 (08:45 - 09:30)
+      + Tiết 4: 09:35 đến 10:20 (09:35 - 10:20)
+      + Tiết 5: 10:30 đến 11:15 (10:30 - 11:15)
       + Tiết 6: 14:00 đến 14:45 (14:00 - 14:45)
       + Tiết 7: 14:50 đến 15:35 (14:50 - 15:35)
       + Tiết 8: 15:45 đến 16:30 (15:45 - 16:30)
 
-      Quy tắc ghép tiết (startTime là giờ bắt đầu của tiết đầu, endTime là giờ kết thúc của tiết cuối):
-      + Tiết 1-1: 07:00 - 07:45
-      + Tiết 1-2: 07:00 - 08:35
-      + Tiết 1-3: 07:00 - 09:30
-      + Tiết 1-4: 07:00 - 10:20
-      + Tiết 1-5: 07:00 - 11:15
-      + Tiết 2-2: 07:50 - 08:35
-      + Tiết 2-3: 07:50 - 09:30
-      + Tiết 2-4: 07:50 - 10:20
-      + Tiết 3-3: 08:45 - 09:30
-      + Tiết 3-4: 08:45 - 10:20
-      + Tiết 3-5: 08:45 - 11:15
-      + Tiết 4-4: 09:35 - 10:20
-      + Tiết 4-5: 09:35 - 11:15
+      Ghép tiết:
+      + Tiết 1-1: 07:00 - 07:45; Tiết 1-2: 07:00 - 08:35; Tiết 1-3: 07:00 - 09:30; Tiết 1-4: 07:00 - 10:20; Tiết 1-5: 07:00 - 11:15
+      + Tiết 2-2: 07:50 - 08:35; Tiết 2-3: 07:50 - 09:30; Tiết 2-4: 07:50 - 10:20
+      + Tiết 3-3: 08:45 - 09:30; Tiết 3-4: 08:45 - 10:20; Tiết 3-5: 08:45 - 11:15
+      + Tiết 4-4: 09:35 - 10:20; Tiết 4-5: 09:35 - 11:15
       + Tiết 5-5: 10:30 - 11:15
-      + Tiết 6-6: 14:00 - 14:45
-      + Tiết 6-7: 14:00 - 15:35
-      + Tiết 6-8: 14:00 - 16:30
-      + Tiết 7-7: 14:50 - 15:35
-      + Tiết 7-8: 14:50 - 16:30
+      + Tiết 6-6: 14:00 - 14:45; Tiết 6-7: 14:00 - 15:35; Tiết 6-8: 14:00 - 16:30
+      + Tiết 7-7: 14:50 - 15:35; Tiết 7-8: 14:50 - 16:30
       + Tiết 8-8: 15:45 - 16:30
 
       CHỐNG TRÙNG LẶP:
@@ -109,9 +89,8 @@ export default async function handler(
     `;
 
     const candidateModels = [
+      "gemini-3.8-flash",
       "gemini-2.5-flash",
-      "gemini-3.7-flash",
-      "gemini-2.5-pro",
     ];
 
     const imagePart = {
@@ -135,6 +114,7 @@ export default async function handler(
               parts: [imagePart, { text: prompt }],
             },
             config: {
+              temperature: 0,
               responseMimeType: "application/json",
               responseSchema: {
                 type: Type.ARRAY,

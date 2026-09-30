@@ -295,17 +295,21 @@ export const deduplicateAndMergeSchedules = (items: ScheduleItem[]): ScheduleIte
       period: norm.period,
     };
 
-    // Primary key for identifying the same teaching slot:
-    // Either by explicit date (e.g. 04/08/2026) or dayOfWeek (e.g. Thứ 3)
-    const dayKey = (item.date && item.date.trim()) 
-      ? item.date.trim() 
-      : (item.dayOfWeek || '').trim();
-    
-    // Time slot key
-    const timeKey = item.startTime || norm.period || '07:00';
-    
-    // Unique key per session
-    const key = `${dayKey}___${timeKey}`.toLowerCase();
+    // Primary key for identifying the same teaching session:
+    // Only merge if it represents the exact same teaching slot and lesson/class
+    const cleanDate = (item.date && item.date.trim()) ? item.date.trim().toLowerCase() : '';
+    const cleanDay = (item.dayOfWeek || '').trim().toLowerCase();
+    const cleanClass = (item.className || '').trim().toLowerCase();
+    const cleanPeriod = (norm.period || item.period || '').trim().toLowerCase();
+    const cleanTime = (norm.startTime || item.startTime || '07:00').trim().toLowerCase();
+    const cleanLesson = (item.lessonName || '').trim().toLowerCase();
+
+    // If date is present, match by (class + date + period/time + lesson)
+    // If date is empty, match by (class + dayOfWeek + period/time + lesson)
+    // This prevents different lessons on the same day/weekday from swallowing each other!
+    const key = cleanDate
+      ? `${cleanClass}___${cleanDate}___${cleanPeriod || cleanTime}___${cleanLesson}`
+      : `${cleanClass}___${cleanDay}___${cleanPeriod || cleanTime}___${cleanLesson}`;
 
     if (!map.has(key)) {
       map.set(key, item);
