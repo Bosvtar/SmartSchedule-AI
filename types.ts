@@ -218,9 +218,6 @@ export const propagateClassNamesByLocation = (
 ): ScheduleItem[] => {
   const locationMap = new Map<string, string>();
 
-  // Known location defaults
-  locationMap.set('210/h10', 'KMP18, KNP27, KPT31');
-
   const allItems = [...fallbackExisting, ...items];
 
   // 1st Pass: Discover first valid class name for each location
@@ -245,7 +242,7 @@ export const propagateClassNamesByLocation = (
     }
   }
 
-  // 2nd Pass: Assign the unified class name to all items sharing the location
+  // 2nd Pass: Assign class name only if item is missing one, preserving extracted class names
   return items.map(item => {
     let loc = (item.location || '').trim();
     let cls = (item.className || '').trim();
@@ -257,15 +254,16 @@ export const propagateClassNamesByLocation = (
       cls = '';
     }
 
-    if (loc && loc !== 'Chưa cập nhật') {
-      const locKey = loc.toLowerCase();
-      const mappedClass = locationMap.get(locKey);
-      if (mappedClass) {
-        cls = mappedClass;
-      } else if (!cls || cls === 'Chưa phân lớp') {
-        // If no named class exists in the document, use the room as a consistent group
-        cls = `Lớp ${loc}`;
-        locationMap.set(locKey, cls);
+    if (!cls || cls === 'Chưa phân lớp') {
+      if (loc && loc !== 'Chưa cập nhật') {
+        const locKey = loc.toLowerCase();
+        const mappedClass = locationMap.get(locKey);
+        if (mappedClass) {
+          cls = mappedClass;
+        } else {
+          cls = `Lớp ${loc}`;
+          locationMap.set(locKey, cls);
+        }
       }
     }
 
