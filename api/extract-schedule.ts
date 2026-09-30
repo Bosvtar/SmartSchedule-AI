@@ -90,7 +90,8 @@ export default async function handler(
 
     const candidateModels = [
       "gemini-3.8-flash",
-      "gemini-2.5-flash",
+      "gemini-3.1-flash-lite",
+      "gemini-flash-latest",
     ];
 
     const imagePart = {
@@ -209,11 +210,22 @@ export default async function handler(
         } catch (err: any) {
           lastError = err;
           console.warn(`Model ${modelName} attempt ${attempt} failed:`, err?.message || err);
+
+          const isQuotaExhausted =
+            err?.status === "RESOURCE_EXHAUSTED" ||
+            err?.message?.includes("RESOURCE_EXHAUSTED") ||
+            err?.message?.includes("Quota exceeded") ||
+            err?.message?.includes("quota") ||
+            err?.message?.includes("429");
+
+          if (isQuotaExhausted) {
+            console.warn(`Model ${modelName} quota exhausted, switching to fallback model...`);
+            break;
+          }
+
           const isRetryable =
             err?.status === "UNAVAILABLE" ||
             err?.message?.includes("503") ||
-            err?.message?.includes("429") ||
-            err?.message?.includes("RESOURCE_EXHAUSTED") ||
             err?.message?.includes("high demand");
 
           if (isRetryable && attempt < 2) {
