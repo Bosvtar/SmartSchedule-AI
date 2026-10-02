@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@google/genai": "^1.30.0",
+    "@vercel/analytics": "^2.0.1",
     "esbuild": "^0.28.2",
     "express": "^5.2.1",
     "lucide-react": "^0.555.0",

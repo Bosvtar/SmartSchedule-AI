@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { 
   ScheduleItem, 
   DAYS_ORDER, 
@@ -1510,7 +1511,7 @@ function App() {
 
       const now = new Date();
       const currentDayIndex = now.getDay(); 
-      const jsDayToViDay = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+      const jsDayToViDay = ["Chủ Nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Th�� 5", "Thứ 6", "Thứ 7"];
       const todayVi = jsDayToViDay[currentDayIndex];
       const todayDateStr = `${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`;
       const currentHour = now.getHours();
@@ -1656,6 +1657,9 @@ function App() {
         settings={notificationSettings}
         onSave={handleSaveNotificationSettings}
       />
+      
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }
